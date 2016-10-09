@@ -1,0 +1,14 @@
+﻿生成启动时间为 2016/10/9 10:55:17。
+     1>项目“G:\mycode\d3d\D3DProject1\D3DProject1\D3DProject1.vcxproj”在节点 2 上(Build 个目标)。
+     1>ClCompile:
+         E:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /ZI /nologo /W3 /WX- /sdl /Od /Oy- /D _MBCS /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Debug\\" /Fd"Debug\vc120.pdb" /Gd /TP /analyze- /errorReport:prompt d3dUtility.cpp
+         d3dUtility.cpp
+       Link:
+         E:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"G:\mycode\d3d\D3DProject1\Debug\D3DProject1.exe" /INCREMENTAL /NOLOGO d3dx10d.lib d3dx9.lib d3d9.lib d3dx9d.lib dxerr.lib dxguid.lib winmm.lib comctl32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"G:\mycode\d3d\D3DProject1\Debug\D3DProject1.pdb" /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"G:\mycode\d3d\D3DProject1\Debug\D3DProject1.lib" /MACHINE:X86 Debug\d3dInit.obj
+         Debug\d3dUtility.obj
+         D3DProject1.vcxproj -> G:\mycode\d3d\D3DProject1\Debug\D3DProject1.exe
+     1>已完成生成项目“G:\mycode\d3d\D3DProject1\D3DProject1\D3DProject1.vcxproj”(Build 个目标)的操作。
+
+生成成功。
+
+已用时间 00:00:00.68
