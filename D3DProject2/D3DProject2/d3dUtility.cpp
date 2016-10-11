@@ -92,9 +92,16 @@ bool d3d::InitD3D(
 
 	int vp = 0;
 	if (caps.DevCaps & D3DDEVCAPS_HWTRANSFORMANDLIGHT)
+	{
 		vp = D3DCREATE_HARDWARE_VERTEXPROCESSING;
+		_cprintf("vp = D3DCREATE_HARDWARE_VERTEXPROCESSING");
+	}
+		
 	else
+	{
 		vp = D3DCREATE_SOFTWARE_VERTEXPROCESSING;
+		_cprintf("vp = D3DCREATE_SOFTWARE_VERTEXPROCESSING");
+	}
 
 	//3、初始化一个D3DPRESENT_PARAMETERS结构实例，这个结构包含了许多创建IDirect3DDevice9接口的数据成员  
 

@@ -50,7 +50,7 @@ bool Setup()
 	Vertex* vertices;
 	VB->Lock(0, 0, (void**)&vertices, 0);
 
-	//设置顶点的数据
+	//设置顶点的数据，直接设置为世界坐标系的坐标
 	vertices[0] = Vertex(-1.0f, -1.0f, -1.0f);
 	vertices[1] = Vertex(-1.0f, 1.0f, -1.0f);
 	vertices[2] = Vertex(1.0f, 1.0f, -1.0f);
@@ -93,13 +93,16 @@ bool Setup()
 	IB->Unlock();
 
 	//照相机位置（视图矩阵）
-	D3DXVECTOR3 position(0.0f, 0.0f, -5.0f);
-	D3DXVECTOR3 target(0.0f, 0.0f, 0.0f);
-	D3DXVECTOR3 up(0.0f, 1.0f, 0.0f);
+	D3DXVECTOR3 position(0.0f, 0.0f, -5.0f);//camera在世界坐标系中的位置向量
+	D3DXVECTOR3 target(0.0f, 0.0f, 0.0f);//target是camera的朝向向量
+	D3DXVECTOR3 up(0.0f, 1.0f, 0.0f);//定义向上的方向，一般是[0,1,0]
 	D3DXMATRIX V;
 	D3DXMatrixLookAtLH(&V, &position, &target, &up);
-
+	//视图坐标系变换
 	Device->SetTransform(D3DTS_VIEW, &V);
+
+	//背面拣选，按D3DCULL_CCW逆时针方向进行剔除（这是DX的默认剔除方式）
+	Device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
 
 	//投影矩阵
 	D3DXMATRIX proj;
@@ -146,6 +149,8 @@ bool Display(float timeDelta)
 
 		//结合x轴与y轴的选择矩阵
 		D3DXMATRIX p = Rx*Ry;
+		//D3DXMATRIX p = Ry*Rx;
+
 		Device->SetTransform(D3DTS_WORLD, &p);
 
 		//清空目标缓存和深度缓存，把屏幕背景填充成白色
@@ -154,14 +159,15 @@ bool Display(float timeDelta)
 
 		Device->BeginScene();
 
-		//把 vertex buffer 中的内容放到一个 stream 中， 这是stream会最终把几何图型渲染成为图像
+		//绘制准备1、设置资源流；2、设置索引缓存；3、设置顶点格式；
+		//把 vertex buffer 中的内容放到一个 stream 中， stream会最终把几何图型渲染成为图像
 		Device->SetStreamSource(0, VB, 0, sizeof(Vertex));
 		//设置 index buffer
 		Device->SetIndices(IB);
 		//设置点的格式， 利用SetFVF函数
 		Device->SetFVF(Vertex::FVF);
 
-		//绘制三角形
+		//从顶点流中获得顶点信息以及从索引缓存中获得索引信息，绘制三角形
 		Device->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, 0, 8, 0, 12);
 
 		Device->EndScene();
@@ -200,6 +206,7 @@ int WINAPI WinMain(HINSTANCE hinstance,
 	PSTR cmdLine,
 	int showCmd)
 {
+	AllocConsole();
 	//初始化一个应用程序的主窗口并进行Direct3D的初始化
 	if (!d3d::InitD3D(hinstance, 800, 600, true, D3DDEVTYPE_HAL, &Device))
 	{
@@ -221,5 +228,6 @@ int WINAPI WinMain(HINSTANCE hinstance,
 	Cleanup();
 
 	Device->Release();
+	FreeConsole();
 	return 0;
 }
