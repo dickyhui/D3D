@@ -3,106 +3,120 @@
 //所有画图的操作都是在IDirect3DDevice9 中
 IDirect3DDevice9* Device = 0;
 
-//定义两个全局变量来保存立方体的顶点和索引数据
-IDirect3DVertexBuffer9* VB = 0;
-IDirect3DIndexBuffer9* IB = 0;
-
 //指定屏幕大小
 const int Width = 800;
 const int Height = 600;
 
-//定义顶点结构以及结构中顶点的格式，这里只保存了顶点的位置信息
+D3DXMATRIX World;
+//IDirect3DVertexBuffer9* Triangle = 0;
+IDirect3DVertexBuffer9* Pyramid = 0;
+
+//声明茶壶的网格
+ID3DXMesh* mesh = 0;
+
+/*给场景增加灯光的步骤是：
+1、 允许使用灯光。
+2、 为每个物体创建材质并且在渲染相应物体前应将材质附予物体。
+3、 创建一个或多个光源，设置它们，把它们设为可用。
+4、 将其他附加光源设为可用，比如镜面高光。*/
+
+
+
 struct Vertex
 {
-	Vertex(){}
-	Vertex(float x, float y, float z)
+	Vertex(float x, float y, float z, float nx,float ny,float nz)
 	{
-		_x = x; _y = y; _z = z;
+		_x = x;
+		_y = y;
+		_z = z;
+		_nx = nx;
+		_ny = ny;
+		_nz = nz;
 	}
-	float _x, _y, _z;
+	float _x, _y, _z, _nx, _ny, _nz;
 	static const DWORD FVF;
 };
-const DWORD Vertex::FVF = D3DFVF_XYZ;
+const DWORD Vertex::FVF = D3DFVF_XYZ | D3DFVF_NORMAL;
 
-struct ColorVertex
+//计算三角形的法线
+void ComputerNormal(D3DXVECTOR3* p0, D3DXVECTOR3* p1, D3DXVECTOR3* p2, D3DXVECTOR3* out)
 {
-	float _x, _y, _z;
-	D3DCOLOR _color;
-	static const DWORD FVF;
-};
-const DWORD ColorVertex::FVF = D3DFVF_XYZ|D3DFVF_DIFFUSE;
+	D3DXVECTOR3 u = *p1 - *p0;
+	D3DXVECTOR3 v = *p2 - *p1;
+	D3DXVec3Cross(out, &u, &v);
+	D3DXVec3Normalize(out, out);
+}
 
 //准备程序需要用到的东西，包括资源的分配，检查设备能力，设置应用程序的状态
 //创建顶点和索引缓存，锁定它们，把构成立方体的顶点写入顶点缓存，以及把定义立方体的三角形的索引写入索引缓存。
 //然后把摄象机向后移动几个单位以便我们能够看见在世界坐标系中原点处被渲染的立方体。
 bool Setup()
 {
-	//利用 CreateVertexBuffer 和 CreateIndexBuffer 创建顶点和索引缓存
+	//创建茶壶网格
+	D3DXCreateTeapot(Device, &mesh, 0);
+
+	//允许使用灯光,默认设置
+	Device->SetRenderState(D3DRS_LIGHTING, true);
+	//利用 CreateVertexBuffer 创建顶点
 	Device->CreateVertexBuffer(
-		8 * sizeof(Vertex),
+		12 * sizeof(Vertex),
 		D3DUSAGE_WRITEONLY,
 		Vertex::FVF,
 		D3DPOOL_MANAGED,
-		&VB,
-		0);
-
-	Device->CreateIndexBuffer(
-		36 * sizeof(WORD),
-		D3DUSAGE_WRITEONLY,
-		D3DFMT_INDEX16,
-		D3DPOOL_MANAGED,
-		&IB,
+		&Pyramid,
 		0);
 
 	//向立方体的顶点缓存填充数据
-	Vertex* vertices;
-	VB->Lock(0, 0, (void**)&vertices, 0);
+	Vertex* v;
+	Pyramid->Lock(0, 0, (void**)&v, 0);
 
-	//设置顶点的数据，直接设置为世界坐标系的坐标
-	vertices[0] = Vertex(-1.0f, -1.0f, -1.0f);
-	vertices[1] = Vertex(-1.0f, 1.0f, -1.0f);
-	vertices[2] = Vertex(1.0f, 1.0f, -1.0f);
-	vertices[3] = Vertex(1.0f, -1.0f, -1.0f);
-	vertices[4] = Vertex(-1.0f, -1.0f, 1.0f);
-	vertices[5] = Vertex(-1.0f, 1.0f, 1.0f);
-	vertices[6] = Vertex(1.0f, 1.0f, 1.0f);
-	vertices[7] = Vertex(1.0f, -1.0f, 1.0f);
+	// front face
+	v[0] = Vertex(-1.0f, 0.0f, -1.0f, 0.0f, 0.707f, -0.707f);
+	v[1] = Vertex(0.0f, 1.0f, 0.0f, 0.0f, 0.707f, -0.707f);
+	v[2] = Vertex(1.0f, 0.0f, -1.0f, 0.0f, 0.707f, -0.707f);
+	// left face
+	v[3] = Vertex(-1.0f, 0.0f, 1.0f, -0.707f, 0.707f, 0.0f);
+	v[4] = Vertex(0.0f, 1.0f, 0.0f, -0.707f, 0.707f, 0.0f);
+	v[5] = Vertex(-1.0f, 0.0f, -1.0f, -0.707f, 0.707f, 0.0f);
+	// right face
+	v[6] = Vertex(1.0f, 0.0f, -1.0f, 0.707f, 0.707f, 0.0f);
+	v[7] = Vertex(0.0f, 1.0f, 0.0f, 0.707f, 0.707f, 0.0f);
+	v[8] = Vertex(1.0f, 0.0f, 1.0f, 0.707f, 0.707f, 0.0f);
+	// back face
+	v[9] = Vertex(1.0f, 0.0f, 1.0f, 0.0f, 0.707f, 0.707f);
+	v[10] = Vertex(0.0f, 1.0f, 0.0f, 0.0f, 0.707f, 0.707f);
+	v[11] = Vertex(-1.0f, 0.0f, 1.0f, 0.0f, 0.707f, 0.707f);
 
-	VB->Unlock();
+	Pyramid->Unlock();
 
-	//定义立方体的三角形
-	WORD* indices = 0;
-	IB->Lock(0, 0, (void**)&indices, 0);
+	//定义材质，反射出白光，自身不发光，且会产生一些高光
+	D3DMATERIAL9 mtrl;
+	mtrl.Ambient = d3d::WHITE;//环境光
+	mtrl.Diffuse = d3d::WHITE;//漫色光
+	mtrl.Specular = d3d::WHITE;//镜面光
+	mtrl.Emissive = d3d::RED;//自发光
+	mtrl.Power = 5.0f;//高光
+	Device->SetMaterial(&mtrl);
 
-	//前面
-	indices[0] = 0; indices[1] = 1; indices[2] = 2;
-	indices[3] = 0; indices[4] = 2; indices[5] = 3;
+	//创建一个沿x轴照射的方向光
+	D3DLIGHT9 dir;
+	::ZeroMemory(&dir, sizeof(dir));
+	dir.Type = D3DLIGHT_DIRECTIONAL;
+	dir.Diffuse = d3d::WHITE;
+	dir.Specular = d3d::WHITE * 0.3f;
+	dir.Ambient = d3d::WHITE*0.6f;
+	dir.Direction = D3DXVECTOR3(1.0f, 0.0f, 0.0f);
+	Device->SetLight(0, &dir);
+	Device->LightEnable(0, true);
 
-	//背面
-	indices[6] = 4; indices[7] = 6; indices[8] = 5;
-	indices[9] = 4; indices[10] = 7; indices[11] = 6;
+	//设置状态使法线从新规格化且把镜面高光设置为可用
+	Device->SetRenderState(D3DRS_NORMALIZENORMALS, true);
+	Device->SetRenderState(D3DRS_SPECULARENABLE, true);
 
-	//左面
-	indices[12] = 4; indices[13] = 5; indices[14] = 1;
-	indices[15] = 4; indices[16] = 1; indices[17] = 0;
-
-	//右面
-	indices[18] = 3; indices[19] = 2; indices[20] = 6;
-	indices[21] = 3; indices[22] = 6; indices[23] = 7;
-
-	//上面
-	indices[24] = 1; indices[25] = 5; indices[26] = 6;
-	indices[27] = 1; indices[28] = 6; indices[29] = 2;
-
-	//下面
-	indices[30] = 4; indices[31] = 0; indices[32] = 3;
-	indices[33] = 4; indices[34] = 3; indices[35] = 7;
-
-	IB->Unlock();
 
 	//照相机位置（视图矩阵）
-	D3DXVECTOR3 position(0.0f, 0.0f, -5.0f);//camera在世界坐标系中的位置向量
-	D3DXVECTOR3 target(0.0f, 0.0f, 0.0f);//target是camera的朝向向量
+	D3DXVECTOR3 position(2.0f, 2.0f, -2.0f);//camera在世界坐标系中的位置向量
+	D3DXVECTOR3 target(-2.0f, -2.0f, 2.0f);//target是camera的朝向向量
 	D3DXVECTOR3 up(0.0f, 1.0f, 0.0f);//定义向上的方向，一般是[0,1,0]
 	D3DXMATRIX V;
 	D3DXMatrixLookAtLH(&V, &position, &target, &up);
@@ -110,7 +124,7 @@ bool Setup()
 	Device->SetTransform(D3DTS_VIEW, &V);
 
 	//背面拣选，按D3DCULL_CCW逆时针方向进行剔除（这是DX的默认剔除方式）
-	Device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+	Device->SetRenderState(D3DRS_CULLMODE, D3DCULL_CCW);
 
 	//投影矩阵
 	D3DXMATRIX proj;
@@ -122,8 +136,8 @@ bool Setup()
 		1000.0f);
 	Device->SetTransform(D3DTS_PROJECTION, &proj);
 
-	//渲染状态（填充模式，框架填充）
-	Device->SetRenderState(D3DRS_FILLMODE, D3DFILL_WIREFRAME);
+	/*device->setrenderstate(d3drs_cullmode, d3dcull_none);
+	device->setrenderstate(d3drs_fillmode, d3dfill_wireframe);*/
 
 	return true;
 		
@@ -132,8 +146,9 @@ bool Setup()
 ////释放Setup中分配的资源，比如内存
 void Cleanup()
 {
-	d3d::Release<IDirect3DVertexBuffer9*>(VB);
-	d3d::Release<IDirect3DIndexBuffer9*>(IB);
+	d3d::Release<IDirect3DVertexBuffer9*>(Pyramid);
+	mesh->Release();
+	mesh = 0;
 }
 
 //绘图和显示的代码，timeDelta为每一帧的时间间隔，用来控制每秒的帧数
@@ -141,42 +156,27 @@ bool Display(float timeDelta)
 {
 	if (Device)
 	{
-		//旋转立方体
-		D3DXMATRIX Rx, Ry;
-		//x轴旋转45弧度
-		D3DXMatrixRotationX(&Rx, 3.14f / 4.0f);
-
-		//每一帧中增加y轴的弧度
-		static float y = 0.0f;
-		D3DXMatrixRotationY(&Ry, y);
-		y += timeDelta;
-
-		//当y轴旋转2周时，重新回到0弧度
-		if (y >= 6.28f)
-			y = 0.0f;
-
-		//结合x轴与y轴的选择矩阵
-		/D3DXMATRIX p = Rx*Ry;
-		//D3DXMATRIX p = Ry*Rx;
-
-		Device->SetTransform(D3DTS_WORLD, &p);
-
 		//清空目标缓存和深度缓存，把屏幕背景填充成白色
 		Device->Clear(0, 0, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER,
 			0xffffffff, 1.0f, 0);
 
 		Device->BeginScene();
-
-		//绘制准备1、设置资源流；2、设置索引缓存；3、设置顶点格式；
+		//设置茶壶的偏移
+		D3DXMatrixTranslation(&World, 1.0f, 0.0f, -0.5f);
+		Device->SetTransform(D3DTS_WORLD, &World);
+		//绘制茶壶
+		mesh->DrawSubset(0);
+		//设置金字塔的偏移
+		D3DXMatrixTranslation(&World, -1.5f, 0.0f, 0.0f);
+		Device->SetTransform(D3DTS_WORLD, &World);
+		//绘制准备
 		//把 vertex buffer 中的内容放到一个 stream 中， stream会最终把几何图型渲染成为图像
-		Device->SetStreamSource(0, VB, 0, sizeof(Vertex));
-		//设置 index buffer
-		Device->SetIndices(IB);
+		Device->SetStreamSource(0, Pyramid, 0, sizeof(Vertex));
 		//设置点的格式， 利用SetFVF函数
 		Device->SetFVF(Vertex::FVF);
 
-		//从顶点流中获得顶点信息以及从索引缓存中获得索引信息，绘制三角形
-		Device->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, 0, 8, 0, 12);
+		//绘制金字塔
+		Device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, 4);
 
 		Device->EndScene();
 		Device->Present(0, 0, 0, 0);

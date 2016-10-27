@@ -3,29 +3,23 @@
 //所有画图的操作都是在IDirect3DDevice9 中
 IDirect3DDevice9* Device = 0;
 
-//定义两个全局变量来保存立方体的顶点和索引数据
-IDirect3DVertexBuffer9* VB = 0;
-IDirect3DIndexBuffer9* IB = 0;
-
 //指定屏幕大小
 const int Width = 800;
 const int Height = 600;
 
-//定义顶点结构以及结构中顶点的格式，这里只保存了顶点的位置信息
-struct Vertex
-{
-	Vertex(){}
-	Vertex(float x, float y, float z)
-	{
-		_x = x; _y = y; _z = z;
-	}
-	float _x, _y, _z;
-	static const DWORD FVF;
-};
-const DWORD Vertex::FVF = D3DFVF_XYZ;
+D3DXMATRIX World;
+IDirect3DVertexBuffer9* Triangle = 0;
+
 
 struct ColorVertex
 {
+	ColorVertex(float x, float y, float z, D3DCOLOR color)
+	{
+		_x = x;
+		_y = y;
+		_z = z;
+		_color = color;
+	}
 	float _x, _y, _z;
 	D3DCOLOR _color;
 	static const DWORD FVF;
@@ -39,75 +33,32 @@ bool Setup()
 {
 	//利用 CreateVertexBuffer 和 CreateIndexBuffer 创建顶点和索引缓存
 	Device->CreateVertexBuffer(
-		8 * sizeof(Vertex),
+		3 * sizeof(ColorVertex),
 		D3DUSAGE_WRITEONLY,
-		Vertex::FVF,
+		ColorVertex::FVF,
 		D3DPOOL_MANAGED,
-		&VB,
-		0);
-
-	Device->CreateIndexBuffer(
-		36 * sizeof(WORD),
-		D3DUSAGE_WRITEONLY,
-		D3DFMT_INDEX16,
-		D3DPOOL_MANAGED,
-		&IB,
+		&Triangle,
 		0);
 
 	//向立方体的顶点缓存填充数据
-	Vertex* vertices;
-	VB->Lock(0, 0, (void**)&vertices, 0);
+	ColorVertex* v;
+	Triangle->Lock(0, 0, (void**)&v, 0);
 
 	//设置顶点的数据，直接设置为世界坐标系的坐标
-	vertices[0] = Vertex(-1.0f, -1.0f, -1.0f);
-	vertices[1] = Vertex(-1.0f, 1.0f, -1.0f);
-	vertices[2] = Vertex(1.0f, 1.0f, -1.0f);
-	vertices[3] = Vertex(1.0f, -1.0f, -1.0f);
-	vertices[4] = Vertex(-1.0f, -1.0f, 1.0f);
-	vertices[5] = Vertex(-1.0f, 1.0f, 1.0f);
-	vertices[6] = Vertex(1.0f, 1.0f, 1.0f);
-	vertices[7] = Vertex(1.0f, -1.0f, 1.0f);
+	v[0] = ColorVertex(-1.0f, 0.0f, 2.0f, D3DCOLOR_XRGB(255, 0, 0));
+	v[1] = ColorVertex(0.0f, 1.0f, 2.0f, D3DCOLOR_XRGB(0, 255, 0));
+	v[2] = ColorVertex(1.0f, 0.0f, 2.0f, D3DCOLOR_XRGB(0, 0, 255));
 
-	VB->Unlock();
+	Triangle->Unlock();
 
-	//定义立方体的三角形
-	WORD* indices = 0;
-	IB->Lock(0, 0, (void**)&indices, 0);
-
-	//前面
-	indices[0] = 0; indices[1] = 1; indices[2] = 2;
-	indices[3] = 0; indices[4] = 2; indices[5] = 3;
-
-	//背面
-	indices[6] = 4; indices[7] = 6; indices[8] = 5;
-	indices[9] = 4; indices[10] = 7; indices[11] = 6;
-
-	//左面
-	indices[12] = 4; indices[13] = 5; indices[14] = 1;
-	indices[15] = 4; indices[16] = 1; indices[17] = 0;
-
-	//右面
-	indices[18] = 3; indices[19] = 2; indices[20] = 6;
-	indices[21] = 3; indices[22] = 6; indices[23] = 7;
-
-	//上面
-	indices[24] = 1; indices[25] = 5; indices[26] = 6;
-	indices[27] = 1; indices[28] = 6; indices[29] = 2;
-
-	//下面
-	indices[30] = 4; indices[31] = 0; indices[32] = 3;
-	indices[33] = 4; indices[34] = 3; indices[35] = 7;
-
-	IB->Unlock();
-
-	//照相机位置（视图矩阵）
-	D3DXVECTOR3 position(0.0f, 0.0f, -5.0f);//camera在世界坐标系中的位置向量
-	D3DXVECTOR3 target(0.0f, 0.0f, 0.0f);//target是camera的朝向向量
-	D3DXVECTOR3 up(0.0f, 1.0f, 0.0f);//定义向上的方向，一般是[0,1,0]
-	D3DXMATRIX V;
-	D3DXMatrixLookAtLH(&V, &position, &target, &up);
-	//视图坐标系变换
-	Device->SetTransform(D3DTS_VIEW, &V);
+	////照相机位置（视图矩阵）
+	//D3DXVECTOR3 position(0.0f, 0.0f, -1.0f);//camera在世界坐标系中的位置向量
+	//D3DXVECTOR3 target(0.0f, 0.0f, 0.0f);//target是camera的朝向向量
+	//D3DXVECTOR3 up(0.0f, 1.0f, 0.0f);//定义向上的方向，一般是[0,1,0]
+	//D3DXMATRIX V;
+	//D3DXMatrixLookAtLH(&V, &position, &target, &up);
+	////视图坐标系变换
+	//Device->SetTransform(D3DTS_VIEW, &V);
 
 	//背面拣选，按D3DCULL_CCW逆时针方向进行剔除（这是DX的默认剔除方式）
 	Device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
@@ -122,8 +73,8 @@ bool Setup()
 		1000.0f);
 	Device->SetTransform(D3DTS_PROJECTION, &proj);
 
-	//渲染状态（填充模式，框架填充）
-	Device->SetRenderState(D3DRS_FILLMODE, D3DFILL_WIREFRAME);
+	//渲染状态
+	Device->SetRenderState(D3DRS_LIGHTING, false);
 
 	return true;
 		
@@ -132,8 +83,7 @@ bool Setup()
 ////释放Setup中分配的资源，比如内存
 void Cleanup()
 {
-	d3d::Release<IDirect3DVertexBuffer9*>(VB);
-	d3d::Release<IDirect3DIndexBuffer9*>(IB);
+	d3d::Release<IDirect3DVertexBuffer9*>(Triangle);
 }
 
 //绘图和显示的代码，timeDelta为每一帧的时间间隔，用来控制每秒的帧数
@@ -141,42 +91,29 @@ bool Display(float timeDelta)
 {
 	if (Device)
 	{
-		//旋转立方体
-		D3DXMATRIX Rx, Ry;
-		//x轴旋转45弧度
-		D3DXMatrixRotationX(&Rx, 3.14f / 4.0f);
-
-		//每一帧中增加y轴的弧度
-		static float y = 0.0f;
-		D3DXMatrixRotationY(&Ry, y);
-		y += timeDelta;
-
-		//当y轴旋转2周时，重新回到0弧度
-		if (y >= 6.28f)
-			y = 0.0f;
-
-		//结合x轴与y轴的选择矩阵
-		/D3DXMATRIX p = Rx*Ry;
-		//D3DXMATRIX p = Ry*Rx;
-
-		Device->SetTransform(D3DTS_WORLD, &p);
-
 		//清空目标缓存和深度缓存，把屏幕背景填充成白色
 		Device->Clear(0, 0, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER,
 			0xffffffff, 1.0f, 0);
 
 		Device->BeginScene();
 
-		//绘制准备1、设置资源流；2、设置索引缓存；3、设置顶点格式；
+		//绘制准备
 		//把 vertex buffer 中的内容放到一个 stream 中， stream会最终把几何图型渲染成为图像
-		Device->SetStreamSource(0, VB, 0, sizeof(Vertex));
-		//设置 index buffer
-		Device->SetIndices(IB);
+		Device->SetStreamSource(0, Triangle, 0, sizeof(ColorVertex));
 		//设置点的格式， 利用SetFVF函数
-		Device->SetFVF(Vertex::FVF);
+		Device->SetFVF(ColorVertex::FVF);
 
-		//从顶点流中获得顶点信息以及从索引缓存中获得索引信息，绘制三角形
-		Device->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, 0, 8, 0, 12);
+		D3DXMatrixTranslation(&World, -1.25f, 0.0f, 0.0f);
+		Device->SetTransform(D3DTS_WORLD, &World);
+
+		Device->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_FLAT);
+		Device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, 1);
+
+		D3DXMatrixTranslation(&World, 1.25f, 0.0f, 0.0f);
+		Device->SetTransform(D3DTS_WORLD, &World);
+
+		Device->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_GOURAUD);
+		Device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, 1);
 
 		Device->EndScene();
 		Device->Present(0, 0, 0, 0);
