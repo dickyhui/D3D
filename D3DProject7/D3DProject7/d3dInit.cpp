@@ -19,6 +19,9 @@ D3DMATERIAL9 BkGndMtrl;
 //茶壶的偏移位置
 D3DXVECTOR3 TeapotPosition(5.0f, -1.0f, -1.0f);
 
+ID3DXFont* font = 0;
+
+
 //为一个场景增加纹理的必要步骤是：
 //1. 用纹理坐标指定的，创建物体的顶点。
 //2. 用D3DXCreateTextureFromFile函数读取一个纹理到IDirect3DTexture9接口中。
@@ -52,11 +55,26 @@ void ComputerNormal(D3DXVECTOR3* p0, D3DXVECTOR3* p1, D3DXVECTOR3* p2, D3DXVECTO
 	D3DXVec3Normalize(out, out);
 }
 
+void CreateFont()
+{
+	D3DXFONT_DESC fontDesc;
+	ZeroMemory(&fontDesc, sizeof(D3DXFONT_DESC));
+	fontDesc.Height = 25; // in logical units
+	fontDesc.Width = 12; // in logical units
+	fontDesc.Weight = 500; // boldness, range 0(light) - 1000(bold)
+	fontDesc.Italic = false;
+	fontDesc.CharSet = DEFAULT_CHARSET;
+	strcpy_s(fontDesc.FaceName, "Times New Roman"); // font style
+	D3DXCreateFontIndirect(Device, &fontDesc, &font);
+}
+
 //准备程序需要用到的东西，包括资源的分配，检查设备能力，设置应用程序的状态
 //创建顶点和索引缓存，锁定它们，把构成立方体的顶点写入顶点缓存，以及把定义立方体的三角形的索引写入索引缓存。
 //然后把摄象机向后移动几个单位以便我们能够看见在世界坐标系中原点处被渲染的立方体。
 bool Setup()
 {
+	CreateFont();
+
 	TeapotMtrl = d3d::RED_MTRL;
 	//TeapotMtrl.Diffuse.a = 0.5f;
 	BkGndMtrl = d3d::WHITE_MTRL;
@@ -65,7 +83,7 @@ bool Setup()
 
 	//利用 CreateVertexBuffer 创建顶点
 	Device->CreateVertexBuffer(
-		6 * sizeof(Vertex),
+		12 * sizeof(Vertex),
 		D3DUSAGE_WRITEONLY,
 		Vertex::FVF,
 		D3DPOOL_MANAGED,
@@ -83,6 +101,13 @@ bool Setup()
 	v[3] = Vertex(-5.0f, -5.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f);
 	v[4] = Vertex(5.0f, 5.0f, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f);
 	v[5] = Vertex(5.0f, -5.0f, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f);
+
+	v[6] = Vertex(-5.0f, -2.0f, -5.0f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f);
+	v[7] = Vertex(-5.0f, -2.0f, 0.0f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f);
+	v[8] = Vertex(5.0f, -2.0f, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f);
+	v[9] = Vertex(-5.0f, -2.0f, -5.0f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f);
+	v[10] = Vertex(5.0f, -2.0f, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f);
+	v[11] = Vertex(5.0f, -2.0f, -5.0f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f);
 
 	BkGndQuad->Unlock();
 
@@ -127,7 +152,7 @@ bool Setup()
 	Device->LightEnable(0, true);
 
 	//照相机位置（视图矩阵）
-	D3DXVECTOR3 position(-0.8f, 0.5f, -5.0f);//camera在世界坐标系中的位置向量
+	D3DXVECTOR3 position(-2.0f, 0.5f, -5.0f);//camera在世界坐标系中的位置向量
 	//D3DXVECTOR3 position(-3.8f, 0.0f, -1.0f);//camera在世界坐标系中的位置向量
 	D3DXVECTOR3 target(0.0f, 0.0f, 0.0f);//target是camera的朝向向量
 	D3DXVECTOR3 up(0.0f, 1.0f, 0.0f);//定义向上的方向，一般是[0,1,0]
@@ -159,14 +184,16 @@ void Cleanup()
 void RenderMirror()
 {
 	//设置允许模板缓存和设置渲染状态
+	//(ref & mask) ComparisonOperation (value & mask)
+	//假如	测试的结果是true，那么我们把像素写入后缓存。假如测试的结果是false, 我们就阻止像素被写入后缓存。当然，如果像素不能被写入后缓存，那么它也不能被写入深度缓存。
 	Device->SetRenderState(D3DRS_STENCILENABLE, true);
-	Device->SetRenderState(D3DRS_STENCILFUNC, D3DCMP_ALWAYS);//让所有模板测试都通过
-	Device->SetRenderState(D3DRS_STENCILREF, 0x1);//测试成功，设置为0x1
-	Device->SetRenderState(D3DRS_STENCILMASK, 0xffffffff);
-	Device->SetRenderState(D3DRS_STENCILWRITEMASK, 0xffffffff);
-	Device->SetRenderState(D3DRS_STENCILZFAIL, D3DSTENCILOP_KEEP);//深度测试失败了，不更新模板缓存入口
-	Device->SetRenderState(D3DRS_STENCILFAIL, D3DSTENCILOP_KEEP);//模板测试失败了，不更新（其实不会失败）
-	Device->SetRenderState(D3DRS_STENCILPASS, D3DSTENCILOP_REPLACE);//深度测试和模板测试都成功，更新模板缓存入口
+	Device->SetRenderState(D3DRS_STENCILFUNC, D3DCMP_ALWAYS);//设置比较运算，这里让所有模板测试都通过
+	Device->SetRenderState(D3DRS_STENCILREF, 0x1);//模板参考值
+	Device->SetRenderState(D3DRS_STENCILMASK, 0xffffffff);//模板掩码
+	Device->SetRenderState(D3DRS_STENCILWRITEMASK, 0xffffffff);//模板写掩码
+	Device->SetRenderState(D3DRS_STENCILZFAIL, D3DSTENCILOP_KEEP);//更新模板缓存，深度测试失败了，不更新模板缓存入口
+	Device->SetRenderState(D3DRS_STENCILFAIL, D3DSTENCILOP_KEEP);//更新模板缓存，模板测试失败了，不更新（其实不会失败）
+	Device->SetRenderState(D3DRS_STENCILPASS, D3DSTENCILOP_REPLACE);//更新模板缓存，深度测试和模板测试都成功，用参考值替换
 
 	//设置深度缓存不可写
 	Device->SetRenderState(D3DRS_ZWRITEENABLE, false);
@@ -206,9 +233,9 @@ void RenderMirror()
 	Device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ZERO);
 
 	//绘制被反射的茶壶
-	D3DXMATRIX WS;
+	/*D3DXMATRIX WS;
 	D3DXMatrixScaling(&WS, 0.2f, 0.2f, 0.2f);
-	Device->SetTransform(D3DTS_WORLD, &WS);
+	Device->SetTransform(D3DTS_WORLD, &WS);*/
 	Device->SetTransform(D3DTS_WORLD, &W);
 	Device->SetMaterial(&TeapotMtrl);
 	Device->SetTexture(0, 0);
@@ -221,12 +248,78 @@ void RenderMirror()
 	Device->SetRenderState(D3DRS_CULLMODE, D3DCULL_CCW);
 }
 
+void RenderShadow()
+{
+	//设置允许模板缓存和设置渲染状态
+	Device->SetRenderState(D3DRS_STENCILENABLE, true);
+	Device->SetRenderState(D3DRS_STENCILFUNC, D3DCMP_EQUAL);//设置比较运算，这里让所有模板测试都通过
+	Device->SetRenderState(D3DRS_STENCILREF, 0x0);//模板参考值
+	Device->SetRenderState(D3DRS_STENCILMASK, 0xffffffff);//模板掩码
+	Device->SetRenderState(D3DRS_STENCILWRITEMASK, 0xffffffff);//模板写掩码
+	Device->SetRenderState(D3DRS_STENCILZFAIL, D3DSTENCILOP_KEEP);//更新模板缓存，深度测试失败了，不更新模板缓存入口
+	Device->SetRenderState(D3DRS_STENCILFAIL, D3DSTENCILOP_KEEP);//更新模板缓存，模板测试失败了，不更新（其实不会失败）
+	Device->SetRenderState(D3DRS_STENCILPASS, D3DSTENCILOP_INCR);//更新模板缓存，深度测试和模板测试都成功，用参考值替换
+
+	/*D3DXMATRIX WS;
+	D3DXMatrixScaling(&WS, 0.2f, 0.2f, 0.2f);*/
+	//Device->SetTransform(D3DTS_WORLD, &WS);
+	//D3DXVECTOR4 lightDirection(0.707f, -0.707f, 0.707f, 0.0f);
+	D3DXVECTOR4 lightDirection(0.0f, -1.0f, 0.0f, 0.0f); //设置平行光
+	D3DXPLANE groundPlane(0.0f, -1.0f, 0.0f, -2.0f); //设置地面
+	D3DXMATRIX S;
+	D3DXMatrixShadow(&S, &lightDirection, &groundPlane); //得出阴影转换矩阵
+	D3DXMATRIX T;
+	D3DXMatrixTranslation(&T, TeapotPosition.x, TeapotPosition.y, TeapotPosition.z); 
+	D3DXMATRIX W = T * S;
+	Device->SetTransform(D3DTS_WORLD, &W);
+
+	//被反射的茶壶的深度比镜子的深度大,需要清除深度缓存
+	Device->Clear(0, 0, D3DCLEAR_ZBUFFER, 0, 1.0f, 0);
+
+	//绘制茶壶的阴影
+	Device->SetRenderState(D3DRS_ALPHABLENDENABLE, true);
+	Device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+	Device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+	D3DMATERIAL9 mtrl = d3d::InitMtrl(d3d::BLACK, d3d::BLACK, d3d::BLACK, d3d::BLACK, 0.0f);
+	mtrl.Diffuse.a = 0.5f; // 50% transparency.
+	// Disable depth buffer so that z-fighting doesn't occur when we
+	// render the shadow on top of the floor.
+	Device->SetRenderState(D3DRS_ZENABLE, false);
+	Device->SetMaterial(&mtrl);
+	Device->SetTexture(0, 0);
+	Teapot->DrawSubset(0);
+	Device->SetRenderState(D3DRS_ZENABLE, true);
+	Device->SetRenderState(D3DRS_ALPHABLENDENABLE, false);
+	Device->SetRenderState(D3DRS_STENCILENABLE, false);
+
+}
+
+DWORD FrameCnt;
+float TimeElapsed;
+float FPS;
+void CalcFPS(float timeDelta)
+{
+	FrameCnt++;
+	TimeElapsed += timeDelta;
+	if (TimeElapsed >= 1.0f)
+	{
+		FPS = (float)FrameCnt / TimeElapsed;
+		TimeElapsed = 0.0f;
+		FrameCnt = 0;
+	}
+}
+
 //绘图和显示的代码，timeDelta为每一帧的时间间隔，用来控制每秒的帧数
 bool Display(float timeDelta)
 {
 	if (Device)
 	{
-		
+		CalcFPS(timeDelta);
+		RECT textRect;
+		textRect.left = 0;
+		textRect.right = 200;
+		textRect.top = 0;
+		textRect.bottom = 50;
 		
 		if (::GetAsyncKeyState('A') & 0x8000f)
 		{
@@ -255,6 +348,11 @@ bool Display(float timeDelta)
 
 		Device->BeginScene();
 
+		std::ostringstream fpsBuff;
+		fpsBuff << FPS;
+		std::string s(fpsBuff.str());
+		s = "FPS: " + s;
+		font->DrawText(0, s.c_str(), -1, &textRect, DT_TOP | DT_LEFT, 0xffff0000);//绘制fps文本
 		
 		D3DXMATRIX W,T;
 		D3DXMatrixIdentity(&W);//定义单位矩阵
@@ -265,13 +363,18 @@ bool Display(float timeDelta)
 		Device->SetTexture(0, BkGndTex);
 		Device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, 2);
 
+		Device->SetFVF(Vertex::FVF);
+		Device->SetMaterial(&BkGndMtrl);
+		Device->SetTexture(0, BkGndTex);
+		Device->DrawPrimitive(D3DPT_TRIANGLELIST, 6, 2);
+
 		//Device->SetRenderState(D3DRS_ALPHABLENDENABLE, true);
-		D3DXMatrixScaling(&W, 0.2f, 0.2f, 0.2f); //缩放
+		//D3DXMatrixScaling(&W, 0.2f, 0.2f, 0.2f); //缩放
 		D3DXMatrixTranslation(&T,
 			TeapotPosition.x,
 			TeapotPosition.y,
 			TeapotPosition.z);
-		Device->SetTransform(D3DTS_WORLD, &W);
+		//Device->SetTransform(D3DTS_WORLD, &W);
 		Device->SetTransform(D3DTS_WORLD, &T);
 		Device->SetMaterial(&TeapotMtrl);
 		Device->SetTexture(0, 0);
@@ -279,7 +382,7 @@ bool Display(float timeDelta)
 		//Device->SetRenderState(D3DRS_ALPHABLENDENABLE, false);
 
 		RenderMirror();
-
+		RenderShadow();
 		Device->EndScene();
 		Device->Present(0, 0, 0, 0);
 

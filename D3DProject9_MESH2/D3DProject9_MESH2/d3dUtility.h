@@ -4,6 +4,8 @@
 #include <d3dx9.h>
 #include <conio.h>
 #include <sstream>
+#include <fstream> 
+#include <vector>   
 //#include <iostream>
 //#include <d3d9.h>
 //#include <Mmsystem.h> 

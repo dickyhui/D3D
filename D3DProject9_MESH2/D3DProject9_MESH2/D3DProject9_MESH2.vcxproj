@@ -11,9 +11,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{56763B29-37EA-4597-9594-D17F4BE4B02A}</ProjectGuid>
-    <RootNamespace>D3DProject7</RootNamespace>
-    <ProjectName>D3DProject7_STENCIL</ProjectName>
+    <ProjectGuid>{DE2D997A-58DB-47B6-A3B7-70362464DE67}</ProjectGuid>
+    <RootNamespace>D3DProject9_MESH2</RootNamespace>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
