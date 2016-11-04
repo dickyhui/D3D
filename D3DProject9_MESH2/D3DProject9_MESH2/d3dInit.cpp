@@ -12,8 +12,9 @@ D3DXMATRIX World;
 ID3DXFont* font = 0;
 
 ID3DXMesh* Mesh = 0;
+ID3DXPMesh* PMesh = 0; //渐进网格
 std::vector<D3DMATERIAL9> Mtrls(0);
-std::vector<IDirect3DTexture9*> Textrue(0);
+std::vector<IDirect3DTexture9*> Textures(0);
 
 std::ofstream OutFile; //文件写操作 内存写入存储设备   
 
@@ -70,13 +71,80 @@ bool Setup()
 {
 	CreateFont();
 
+	HRESULT hr = 0;
+
+	ID3DXBuffer* adjBuffer = 0;
+	ID3DXBuffer* mtrlBuffer = 0;
+	DWORD numMtrls = 0;
+	hr = D3DXLoadMeshFromX(
+		"C:/Program Files (x86)/Microsoft DirectX SDK (June 2010)/Samples/Media/misc/bigship1.x",
+		//"miki.X",
+		//"ball.x",
+		//"bigship1.x",
+		D3DXMESH_MANAGED,
+		Device,
+		&adjBuffer,
+		&mtrlBuffer,
+		0,
+		&numMtrls,
+		&Mesh);
+	if (FAILED(hr))
+	{
+		::MessageBox(0, "D3DXLoadMeshFromX() - FAILED", 0, 0);
+		return false;
+	}
+
+	if (mtrlBuffer != 0 && numMtrls != 0)
+	{
+		D3DXMATERIAL* mtrls = (D3DXMATERIAL*)mtrlBuffer->GetBufferPointer();
+		for (int i = 0; i < numMtrls; i++)
+		{
+			mtrls[i].MatD3D.Ambient = mtrls[i].MatD3D.Diffuse;
+			Mtrls.push_back(mtrls[i].MatD3D);
+			_cprintf("pTextureFilename %s \n", mtrls[i].pTextureFilename);
+			if (mtrls[i].pTextureFilename != 0)
+			{
+				IDirect3DTexture9* tex = 0;
+				D3DXCreateTextureFromFile(
+					Device,
+					mtrls[i].pTextureFilename,
+					&tex);
+				Textures.push_back(tex);
+			}
+			else
+			{
+				Textures.push_back(0);
+			}
+		}
+	}
+	d3d::Release<ID3DXBuffer*>(mtrlBuffer);
+
+	hr = D3DXGeneratePMesh(
+		Mesh,
+		(DWORD*)adjBuffer->GetBufferPointer(),
+		0, 0, 1,
+		D3DXMESHSIMP_FACE,
+		&PMesh);
+	//d3d::Release<ID3DXMesh*>(Mesh);
+	d3d::Release<ID3DXBuffer*>(adjBuffer);
+	if (FAILED(hr))
+	{
+		::MessageBox(0, "D3DXGeneratePMesh() - FAILED", 0, 0);
+		return false;
+	}
+
+	//初始化设置成最高细节
+	DWORD maxFaces = PMesh->GetMaxFaces();
+	PMesh->SetNumFaces(maxFaces);
+
+
 	OutFile.open("Mesh Dump.txt");
 
-	dumpVertices(OutFile, Mesh);
-	dumpIndices(OutFile, Mesh);
-	dumpAttributeTable(OutFile, Mesh);
-	dumpAttributeBuffer(OutFile, Mesh);
-	dumpAdjacencyBuffer(OutFile, Mesh);
+	//dumpVertices(OutFile, Mesh);
+	//dumpIndices(OutFile, Mesh);
+	//dumpAttributeTable(OutFile, Mesh);
+	//dumpAttributeBuffer(OutFile, Mesh);
+	//dumpAdjacencyBuffer(OutFile, Mesh);
 
 	OutFile.close();
 
@@ -85,16 +153,30 @@ bool Setup()
 	Device->SetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_POINT);
 
 	//    
-	// Disable lighting.   
+	//  lighting.   
 	//   
 
-	Device->SetRenderState(D3DRS_LIGHTING, false);
+	Device->SetRenderState(D3DRS_LIGHTING, true);
+	//创建一个沿x轴照射的方向光
+	D3DLIGHT9 dir;
+	::ZeroMemory(&dir, sizeof(dir));
+	dir.Type = D3DLIGHT_DIRECTIONAL;
+	dir.Diffuse = d3d::WHITE;
+	dir.Specular = d3d::WHITE * 0.3f;
+	dir.Ambient = d3d::WHITE*0.6f;
+	dir.Direction = D3DXVECTOR3(1.0f, 0.0f, 0.0f);
+	Device->SetLight(0, &dir);
+	Device->LightEnable(0, true);
+
+	Device->SetRenderState(D3DRS_ALPHABLENDENABLE, true);
+	Device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+	Device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
 
 	//   
 	// Set camera.   
 	//   
 
-	D3DXVECTOR3 pos(0.0f, 0.f, -4.0f);
+	D3DXVECTOR3 pos(0.0f, 0.0f, -20.0f);
 	D3DXVECTOR3 target(0.0f, 0.0f, 0.0f);
 	D3DXVECTOR3 up(0.0f, 1.0f, 0.0f);
 
@@ -128,6 +210,43 @@ bool Setup()
 void Cleanup()
 {
 
+}
+
+bool ComputeBoundingSphere(
+	ID3DXMesh* mesh, // mesh to compute bounding sphere for
+	d3d::BoundingSphere* sphere) // return bounding sphere
+{
+	HRESULT hr = 0;
+	BYTE* v = 0;
+	mesh->LockVertexBuffer(0, (void**)&v);
+	hr = D3DXComputeBoundingSphere(
+		(D3DXVECTOR3*)v,
+		mesh->GetNumVertices(),
+		D3DXGetFVFVertexSize(mesh->GetFVF()),
+		&sphere->_center,
+		&sphere->_radius);
+	mesh->UnlockVertexBuffer();
+	if (FAILED(hr))
+		return false;
+	return true;
+}
+bool ComputeBoundingBox(
+	ID3DXMesh* mesh, // mesh to compute bounding box for
+	d3d::BoundingBox* box) // return bounding box
+{
+	HRESULT hr = 0;
+	BYTE* v = 0;
+	mesh->LockVertexBuffer(0, (void**)&v);
+	hr = D3DXComputeBoundingBox(
+		(D3DXVECTOR3*)v,
+		mesh->GetNumVertices(),
+		D3DXGetFVFVertexSize(mesh->GetFVF()),
+		&box->_min,
+		&box->_max);
+	mesh->UnlockVertexBuffer();
+	if (FAILED(hr))
+		return false;
+	return true;
 }
 
 DWORD FrameCnt;
@@ -183,14 +302,59 @@ bool Display(float timeDelta)
 
 		Device->SetTransform(D3DTS_WORLD, &World);
 
-		//   
-		// Render   
-		//   
+		int numFaces = PMesh->GetNumFaces();
+		if (::GetAsyncKeyState('A') & 0x8000f)
+		{
+			PMesh->SetNumFaces(numFaces + 1);
+			if (PMesh->GetNumFaces() == numFaces)
+			{
+				PMesh->SetNumFaces(numFaces + 2);
+			}
+			_cprintf("PMesh numFaces %d \n", numFaces);
+		}
+		if (::GetAsyncKeyState('S') & 0x8000f)
+		{
+			PMesh->SetNumFaces(numFaces - 1);
+			_cprintf("PMesh numFaces %d \n", numFaces);
+		}
 
-		Device->Clear(0, 0, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0x00000000, 1.0f, 0);
+		Device->Clear(0, 0, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0xffffffff, 1.0f, 0);
 		Device->BeginScene();
 
 		DrawFPS();
+
+		for (int i = 0; i < Mtrls.size(); i++)
+		{
+			Device->SetMaterial(&Mtrls[i]);
+			Device->SetTexture(0, Textures[i]);
+			PMesh->DrawSubset(i);
+
+			Device->SetMaterial(&d3d::YELLOW_MTRL);
+			Device->SetRenderState(D3DRS_FILLMODE, D3DFILL_WIREFRAME);
+			PMesh->DrawSubset(i);
+			Device->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
+		}
+
+		//绘制碰撞题
+		d3d::BoundingBox box;
+		HRESULT hr;
+		hr = ComputeBoundingBox(Mesh, &box);
+		if(hr != 0)
+		{
+			ID3DXMesh* MeshBox = 0;
+			float width = box._max.x - box._min.x;
+			float height = box._max.y - box._min.y;
+			float depth = box._max.z - box._min.z;
+			ID3DXBuffer* adjacency;
+			D3DXCreateBox(Device, width, height, depth, &MeshBox, &adjacency);
+			
+			D3DMATERIAL9 material = d3d::InitMtrl(d3d::RED, d3d::RED, d3d::RED, d3d::BLACK, 8.0f);
+			material.Ambient.a = 0.2f;
+			material.Diffuse.a = 0.2f;
+			material.Emissive.a = 0.2f;
+			Device->SetMaterial(&material);
+			MeshBox->DrawSubset(0);
+		}
 
 		Device->EndScene();
 		Device->Present(0, 0, 0, 0);
@@ -349,6 +513,9 @@ void dumpAttributeTable(std::ofstream& outFile, ID3DXMesh* mesh)
 	DWORD numEntries = 0;
 
 	mesh->GetAttributeTable(0, &numEntries);
+
+	_cprintf("numEntries %d", numEntries);
+
 
 	std::vector<D3DXATTRIBUTERANGE> table(numEntries);
 

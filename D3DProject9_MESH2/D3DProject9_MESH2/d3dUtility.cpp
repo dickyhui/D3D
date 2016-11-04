@@ -11,6 +11,40 @@ D3DMATERIAL9 d3d::InitMtrl(D3DXCOLOR a, D3DXCOLOR d, D3DXCOLOR s, D3DXCOLOR e, f
 	return mtrl;
 }
 
+d3d::BoundingBox::BoundingBox()
+{
+	// infinite small bounding box
+	_min.x = d3d::INFINITYNUM;
+	_min.y = d3d::INFINITYNUM;
+	_min.z = d3d::INFINITYNUM;
+	_max.x = -d3d::INFINITYNUM;
+	_max.y = -d3d::INFINITYNUM;
+	_max.z = -d3d::INFINITYNUM;
+}
+bool d3d::BoundingBox::isPointInside(D3DXVECTOR3& p)
+{
+	// is the point inside the bounding box?
+	if (p.x >= _min.x && p.y >= _min.y && p.z >= _min.z &&
+		p.x <= _max.x && p.y <= _max.y && p.z <= _max.z)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+d3d::BoundingSphere::BoundingSphere()
+{
+	_radius = 0.0f;
+}
+
+bool d3d::Equals(float lhs, float rhs)
+{
+	return fabs(lhs - rhs) < d3d::EPSILON ? true : false;
+}
+
 bool d3d::InitD3D(
 	HINSTANCE hInstance,
 	int width, int height,

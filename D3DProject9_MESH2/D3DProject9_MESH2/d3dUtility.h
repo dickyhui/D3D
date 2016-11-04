@@ -45,6 +45,24 @@ namespace d3d
 	const D3DMATERIAL9 BLUE_MTRL = InitMtrl(BLUE, BLUE, BLUE, BLACK, 8.0f);
 	const D3DMATERIAL9 YELLOW_MTRL = InitMtrl(YELLOW, YELLOW, YELLOW, BLACK, 8.0f);
 
+	const float INFINITYNUM = FLT_MAX;
+	const float EPSILON = 0.001f;
+	bool Equals(float lhs, float rhs);
+	struct BoundingBox
+	{
+		BoundingBox();
+		bool isPointInside(D3DXVECTOR3& p);
+		D3DXVECTOR3 _min;
+		D3DXVECTOR3 _max;
+	};
+	struct BoundingSphere
+	{
+		BoundingSphere();
+		D3DXVECTOR3 _center;
+		float _radius;
+	};
+	
+	
 	template<class T> void Release(T t)
 	{
 		if (t)
